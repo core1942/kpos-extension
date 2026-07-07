@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>POS License 完整配置</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <div>
+          <h1>POS License 配置</h1>
+          <p>配置插件生效路径、SN、客户端类型与运行模式。</p>
+        </div>
+        <div class="header-actions">
+          <button id="resetButton" class="button ghost" type="button">恢复默认</button>
+          <button id="saveButton" class="button primary" type="button">保存</button>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="section-heading">
+          <h2>运行模式</h2>
+          <p>客户端模式会先检查授权并引导注册；运维模式直接使用运维 SN 添加请求头。</p>
+        </div>
+        <div class="mode-row">
+          <label class="mode-option">
+            <input type="radio" name="mode" value="client">
+            <span>
+              <strong>客户端模式</strong>
+              <small>默认模式，按配置 SN/type 检查授权。</small>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="mode" value="operation">
+            <span>
+              <strong>运维模式</strong>
+              <small>命中 path 后使用运维 SN 和配置 type。</small>
+            </span>
+          </label>
+        </div>
+        <label class="field compact">
+          <span>运维模式 SN</span>
+          <input id="operationSnInput" type="text" autocomplete="off">
+        </label>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <h2>设备标识</h2>
+          <p>首次安装时生成，不随配置保存变化；默认 SN 由设备 ID 与浏览器类型拼接。</p>
+        </div>
+        <div class="identity-grid">
+          <label class="field">
+            <span>设备 ID</span>
+            <input id="deviceIdInput" type="text" readonly>
+          </label>
+          <label class="field">
+            <span>浏览器类型</span>
+            <input id="browserTypeInput" type="text" readonly>
+          </label>
+          <label class="field wide">
+            <span>默认 SN</span>
+            <input id="generatedSnInput" type="text" readonly>
+          </label>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading with-action">
+          <div>
+            <h2>激活 Path</h2>
+            <p>新增 path 时，SN 与 type 必填；命中这些路径后插件才会生效。</p>
+          </div>
+          <button id="addPathButton" class="button secondary" type="button">新增 Path</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Path</th>
+                <th>SN</th>
+                <th>Type</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="pathsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <p id="feedback" class="feedback" role="status"></p>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>

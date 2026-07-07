@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>POS License 设备注册</title>
+    <link rel="stylesheet" href="register.css">
+  </head>
+  <body>
+    <main class="gate">
+      <section class="dialog" aria-labelledby="title">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">POS License</p>
+            <h1 id="title">设备注册</h1>
+          </div>
+          <span id="typeBadge" class="type-badge">Type -</span>
+        </div>
+
+        <p id="reasonText" class="reason">正在检测授权状态...</p>
+
+        <form id="registerForm" hidden>
+          <label class="field">
+            <span>设备名称</span>
+            <input id="clientNameInput" type="text" autocomplete="off" required>
+          </label>
+
+          <label class="field">
+            <span>设备序列号</span>
+            <input id="snInput" type="text" autocomplete="off" required>
+          </label>
+
+          <label class="field">
+            <span>设备使用区域</span>
+            <select id="areaSelect">
+              <option value="">不选择区域</option>
+            </select>
+          </label>
+
+          <div class="target-info">
+            <span>目标页面</span>
+            <strong id="targetText">-</strong>
+          </div>
+
+          <p id="feedback" class="feedback"></p>
+
+          <footer class="actions">
+            <button id="optionsButton" class="button ghost" type="button">完整配置</button>
+            <button id="submitButton" class="button primary" type="submit">确定注册</button>
+          </footer>
+        </form>
+      </section>
+    </main>
+
+    <script src="register.js"></script>
+  </body>
+</html>

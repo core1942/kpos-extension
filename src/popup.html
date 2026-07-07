@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>POS License</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="topbar">
+        <div>
+          <h1>POS License</h1>
+          <p id="modeText">正在读取状态...</p>
+        </div>
+        <span id="statusBadge" class="badge muted">检测中</span>
+      </header>
+
+      <section class="status-panel">
+        <dl>
+          <div>
+            <dt>Path</dt>
+            <dd id="pathValue">-</dd>
+          </div>
+          <div>
+            <dt>SN</dt>
+            <dd id="snValue">-</dd>
+          </div>
+          <div>
+            <dt>Type</dt>
+            <dd id="typeValue">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <p id="messageText" class="message"></p>
+
+      <footer class="actions">
+        <button id="optionsButton" class="button secondary" type="button">完整配置</button>
+        <button id="unbindButton" class="button danger" type="button" hidden>解绑</button>
+      </footer>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

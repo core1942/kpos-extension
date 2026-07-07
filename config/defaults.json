@@ -1,0 +1,19 @@
+{
+  "defaultMode": "client",
+  "operationSn": "device001",
+  "clientNamePrefix": "POS License Client",
+  "paths": [
+    {
+      "path": "/kpos/front/myhome.html",
+      "type": "0"
+    },
+    {
+      "path": "/kpos/emenu/index.html",
+      "type": "1"
+    },
+    {
+      "path": "/kpos/kiosklite",
+      "type": "14"
+    }
+  ]
+}

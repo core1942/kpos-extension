@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Privacy Policy - POS License Header Helper</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+        background: #f5f7fb;
+        color: #162033;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #f5f7fb;
+      }
+
+      main {
+        width: min(980px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 44px 0 64px;
+      }
+
+      article {
+        border: 1px solid #dce3ee;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 34px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin-top: 30px;
+        font-size: 21px;
+        line-height: 1.35;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin-top: 20px;
+        font-size: 16px;
+        line-height: 1.4;
+        letter-spacing: 0;
+      }
+
+      p,
+      li {
+        color: #46556b;
+        line-height: 1.72;
+      }
+
+      p {
+        margin-top: 12px;
+      }
+
+      ul {
+        margin: 12px 0 0;
+        padding-left: 22px;
+      }
+
+      code {
+        border-radius: 5px;
+        background: #eef3ff;
+        color: #173f9f;
+        padding: 2px 5px;
+        font-family: Consolas, "Courier New", monospace;
+      }
+
+      .meta {
+        margin-top: 10px;
+        color: #69778c;
+        font-size: 14px;
+      }
+
+      .divider {
+        height: 1px;
+        margin: 34px 0;
+        background: #e4eaf2;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <h1>Privacy Policy for POS License Header Helper</h1>
+        <p class="meta">Effective date: July 7, 2026</p>
+
+        <h2>English</h2>
+
+        <h3>Overview</h3>
+        <p>
+          POS License Header Helper is a Chrome and Edge extension designed for internal KPOS deployments.
+          The extension helps authorized POS, e-menu, and kiosk client devices add required client identity
+          headers to KPOS API requests.
+        </p>
+
+        <h3>Single Purpose</h3>
+        <p>
+          The sole purpose of this extension is to support the client authorization workflow of an internal
+          KPOS system. When the current tab matches a configured KPOS activation path, the extension adds
+          <code>X-Client-Sn</code> and <code>X-Client-Type</code> headers only to requests whose path starts
+          with <code>/kpos/api</code>.
+        </p>
+
+        <h3>Data Stored Locally</h3>
+        <p>The extension stores the following configuration data locally in the browser extension storage:</p>
+        <ul>
+          <li>Generated device ID.</li>
+          <li>Browser type.</li>
+          <li>Client serial number, also called SN.</li>
+          <li>KPOS activation path configuration.</li>
+          <li>Client type value.</li>
+          <li>Extension mode, such as client mode or operation mode.</li>
+        </ul>
+        <p>
+          This data is used only to complete the KPOS client authorization flow. It is not sold, shared with
+          third parties, or used for advertising, analytics, or tracking.
+        </p>
+
+        <h3>Network Communication</h3>
+        <p>
+          The extension communicates only with the KPOS site currently visited by the user. It may call the
+          following internal KPOS API endpoints:
+        </p>
+        <ul>
+          <li><code>/kpos/api/client/overview</code></li>
+          <li><code>/kpos/api/client/register</code></li>
+          <li><code>/kpos/api/client/unbind</code></li>
+        </ul>
+        <p>
+          The extension does not send data to the developer's own servers or to any third-party analytics,
+          advertising, or tracking service.
+        </p>
+
+        <h3>Remote Code</h3>
+        <p>
+          The extension does not use remote code. All JavaScript, HTML, CSS, and configuration files are
+          packaged with the extension. The extension does not download, load, or execute remote JavaScript,
+          WebAssembly, plugins, or executable code.
+        </p>
+
+        <h3>Host Permission Scope</h3>
+        <p>
+          Internal KPOS systems may be deployed under different intranet domains, IP addresses, and ports.
+          For that reason, the extension may request broad host access. In practice, the extension activates
+          only when the current tab matches a configured KPOS path, and header injection is limited to
+          <code>/kpos/api</code> requests in that tab. Static resources, normal pages, and iframe page loads
+          do not receive the client authorization headers.
+        </p>
+
+        <h3>User Rights and Contact</h3>
+        <p>
+          Users can edit or remove extension configuration from the extension options page, or remove the
+          extension from the browser to delete its local extension data. For privacy questions, contact the
+          publisher using the contact email configured in the Chrome Web Store developer account.
+        </p>
+
+        <div class="divider"></div>
+
+        <h2>中文</h2>
+
+        <h3>概述</h3>
+        <p>
+          POS License Header Helper 是面向公司内部 KPOS 系统的 Chrome 和 Edge 浏览器扩展。
+          本扩展用于帮助 POS、电子菜单和自助点餐终端完成 KPOS API 请求所需的客户端身份请求头注入。
+        </p>
+
+        <h3>单一用途</h3>
+        <p>
+          本扩展的唯一用途是支持公司内部 KPOS 系统的客户端授权流程。当当前标签页命中已配置的 KPOS
+          激活路径时，扩展仅为路径以 <code>/kpos/api</code> 开头的请求添加 <code>X-Client-Sn</code>
+          和 <code>X-Client-Type</code> 请求头。
+        </p>
+
+        <h3>本地存储的数据</h3>
+        <p>扩展会在浏览器扩展本地存储中保存以下配置数据：</p>
+        <ul>
+          <li>本地生成的设备 ID。</li>
+          <li>浏览器类型。</li>
+          <li>客户端序列号，即 SN。</li>
+          <li>KPOS 激活路径配置。</li>
+          <li>客户端 type 值。</li>
+          <li>插件运行模式，例如客户端模式或运维模式。</li>
+        </ul>
+        <p>
+          这些数据仅用于完成 KPOS 客户端授权流程。扩展不会出售这些数据，不会与第三方共享这些数据，
+          也不会将这些数据用于广告、分析或追踪。
+        </p>
+
+        <h3>网络通信</h3>
+        <p>扩展仅会与用户当前访问的 KPOS 站点交互，可能调用以下公司内部 KPOS API：</p>
+        <ul>
+          <li><code>/kpos/api/client/overview</code></li>
+          <li><code>/kpos/api/client/register</code></li>
+          <li><code>/kpos/api/client/unbind</code></li>
+        </ul>
+        <p>
+          扩展不会将数据发送到开发者自有服务器，也不会将数据发送到任何第三方分析、广告或追踪服务。
+        </p>
+
+        <h3>远程代码</h3>
+        <p>
+          本扩展不使用远程代码。所有 JavaScript、HTML、CSS 和配置文件均随扩展包一起发布。
+          扩展不会下载、加载或执行远程 JavaScript、WebAssembly、插件代码或可执行代码。
+        </p>
+
+        <h3>主机权限范围</h3>
+        <p>
+          公司内部 KPOS 系统可能部署在不同的内网域名、IP 地址和端口下，因此扩展可能需要较宽的主机访问权限。
+          实际使用中，扩展只有在当前标签页命中已配置的 KPOS path 时才会生效，并且请求头注入范围限制为当前标签页内
+          <code>/kpos/api</code> 开头的请求。静态资源、普通页面和 iframe 页面本身不会被添加客户端授权请求头。
+        </p>
+
+        <h3>用户权利和联系方式</h3>
+        <p>
+          用户可以在扩展配置页修改或删除扩展配置，也可以从浏览器中移除扩展以删除本地扩展数据。
+          如有隐私相关问题，请通过 Chrome Web Store 开发者账号中配置的发布方联系邮箱联系发布方。
+        </p>
+      </article>
+    </main>
+  </body>
+</html>
