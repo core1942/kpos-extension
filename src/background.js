@@ -197,6 +197,7 @@ async function normalizeSettings(settings) {
   const browserType = settings.browserType || detectBrowserType();
   const generatedSn = settings.generatedSn || buildGeneratedSn(deviceId, browserType);
   const paths = Array.isArray(settings.paths) ? settings.paths : [];
+  const fallbackClientName = buildDefaultClientName(defaults.clientNamePrefix, browserType, deviceId);
 
   return {
     version: 1,
@@ -205,10 +206,10 @@ async function normalizeSettings(settings) {
     deviceId,
     browserType,
     generatedSn,
-    defaultClientName: stringOr(
-      settings.defaultClientName,
-      buildDefaultClientName(defaults.clientNamePrefix, browserType, deviceId)
-    ),
+    defaultClientName:
+      settings.defaultClientName === undefined || settings.defaultClientName === null
+        ? fallbackClientName
+        : String(settings.defaultClientName).trim(),
     paths: paths.map((item, index) => ({
       id: item.id || createEntryId(item.path, index),
       path: normalizePath(item.path),
@@ -243,7 +244,7 @@ async function saveSettings(draft) {
     deviceId: current.deviceId,
     browserType: current.browserType,
     generatedSn: current.generatedSn,
-    defaultClientName: current.defaultClientName
+    defaultClientName: draft?.defaultClientName ?? current.defaultClientName
   });
   const errors = validateSettings(next);
 
@@ -281,6 +282,10 @@ function validateSettings(settings) {
 
   if (!settings.operationSn.trim()) {
     errors.push("运维模式 SN 不能为空。");
+  }
+
+  if (!settings.defaultClientName.trim()) {
+    errors.push("默认设备名称不能为空。");
   }
 
   if (!settings.paths.length) {
@@ -350,7 +355,7 @@ async function handleNavigation(tabId, url) {
 
   const overview = await fetchOverview(new URL(url).origin, entry);
   if (overview.bound) {
-    await activateTab(tabId, url, entry, headerConfig, settings.mode);
+    await activateTab(tabId, url, entry, headerConfig, settings.mode, overview.client);
     return;
   }
 
@@ -377,6 +382,7 @@ async function fetchOverview(origin, entry) {
       httpStatus: response.status,
       body,
       bound: success && data.bound === true,
+      client: normalizeOverviewClient(data.client),
       areas: Array.isArray(data.areas) ? data.areas : [],
       message: success ? body?.msg : body?.msg || `授权检测失败：HTTP ${response.status}`
     };
@@ -386,6 +392,7 @@ async function fetchOverview(origin, entry) {
       httpStatus: 0,
       body: null,
       bound: false,
+      client: null,
       areas: [],
       message: error.message || "授权检测接口异常。"
     };
@@ -447,7 +454,7 @@ async function prepareRegistration(targetUrl, entryId, reason) {
     targetUrl: parsedUrl.href,
     entryId: entry.id,
     path: entry.path,
-    sn: entry.sn,
+    sn: settings.generatedSn,
     type: entry.type,
     defaultClientName: settings.defaultClientName,
     areas: overview.areas,
@@ -596,15 +603,20 @@ async function getPopupStatus(tabId) {
   const entry = tab?.url ? findPathEntry(tab.url, settings) : null;
   const active = activeTabs.get(tabId);
   const headerConfig = entry ? getHeaderConfig(settings, entry) : null;
+  const isActive = Boolean(entry && active && active.entryId === entry.id);
+  const client = isActive ? active.client : null;
+  const operationFallback = settings.mode === "operation" && isActive;
 
   return {
     ok: true,
     mode: settings.mode,
     matched: Boolean(entry),
-    active: Boolean(entry && active),
+    active: isActive,
     path: entry?.path || "",
-    sn: active?.sn || headerConfig?.sn || "",
-    type: active?.type || headerConfig?.type || "",
+    clientName: client?.clientName || "",
+    sn: client?.sn || (operationFallback ? active.sn || headerConfig?.sn || "" : ""),
+    type: client?.typeName || (operationFallback ? active.type || headerConfig?.type || "" : ""),
+    areaName: client?.areaName || "",
     targetUrl: tab?.url || ""
   };
 }
@@ -637,7 +649,10 @@ async function refreshOpenTabs(settings) {
         return;
       }
       if (activeTabs.has(tab.id)) {
-        await activateTab(tab.id, tab.url, entry, getHeaderConfig(settings, entry), settings.mode);
+        const active = activeTabs.get(tab.id);
+        const headerConfig = getHeaderConfig(settings, entry);
+        const client = active.sn === headerConfig.sn && active.type === headerConfig.type ? active.client : null;
+        await activateTab(tab.id, tab.url, entry, headerConfig, settings.mode, client);
       }
     })
   );
@@ -659,12 +674,13 @@ async function scanOpenTabsForMatches(settings) {
   );
 }
 
-async function activateTab(tabId, url, entry, headerConfig, mode) {
+async function activateTab(tabId, url, entry, headerConfig, mode, client = null) {
   activeTabs.set(tabId, {
     entryId: entry.id,
     path: entry.path,
     sn: headerConfig.sn,
     type: headerConfig.type,
+    client: normalizeOverviewClient(client),
     mode,
     targetUrl: url,
     activatedAt: Date.now()
@@ -729,6 +745,19 @@ function getHeaderConfig(settings, entry) {
   return {
     sn: settings.mode === "operation" ? settings.operationSn || "device001" : entry.sn,
     type: String(entry.type ?? "").trim()
+  };
+}
+
+function normalizeOverviewClient(client) {
+  if (!client || typeof client !== "object") {
+    return null;
+  }
+
+  return {
+    clientName: String(client.clientName ?? "").trim(),
+    sn: String(client.sn ?? "").trim(),
+    typeName: String(client.typeName ?? "").trim(),
+    areaName: String(client.areaName ?? "").trim()
   };
 }
 

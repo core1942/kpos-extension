@@ -3,6 +3,7 @@ const els = {
   resetButton: document.querySelector("#resetButton"),
   addPathButton: document.querySelector("#addPathButton"),
   operationSnInput: document.querySelector("#operationSnInput"),
+  defaultClientNameInput: document.querySelector("#defaultClientNameInput"),
   deviceIdInput: document.querySelector("#deviceIdInput"),
   browserTypeInput: document.querySelector("#browserTypeInput"),
   generatedSnInput: document.querySelector("#generatedSnInput"),
@@ -33,6 +34,7 @@ function render() {
     input.checked = input.value === settings.mode;
   });
   els.operationSnInput.value = settings.operationSn || "";
+  els.defaultClientNameInput.value = settings.defaultClientName || "";
   els.deviceIdInput.value = settings.deviceId || "";
   els.browserTypeInput.value = settings.browserType || "";
   els.generatedSnInput.value = settings.generatedSn || "";
@@ -61,6 +63,7 @@ function collectDraft() {
     ...settings,
     mode: document.querySelector("input[name='mode']:checked")?.value || "client",
     operationSn: els.operationSnInput.value.trim(),
+    defaultClientName: els.defaultClientNameInput.value.trim(),
     paths: [...els.pathsBody.querySelectorAll("tr")].map((row) => ({
       id: row.dataset.id,
       path: row.querySelector(".path-input").value.trim(),

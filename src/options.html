@@ -48,10 +48,14 @@
 
       <section class="section">
         <div class="section-heading">
-          <h2>设备标识</h2>
-          <p>首次安装时生成，不随配置保存变化；默认 SN 由设备 ID 与浏览器类型拼接。</p>
+          <h2>默认设备标识</h2>
+          <p>注册页会默认使用设备名称；默认 SN 由设备 ID 与浏览器类型拼接。</p>
         </div>
         <div class="identity-grid">
+          <label class="field wide">
+            <span>设备名称</span>
+            <input id="defaultClientNameInput" type="text" autocomplete="off">
+          </label>
           <label class="field">
             <span>设备 ID</span>
             <input id="deviceIdInput" type="text" readonly>

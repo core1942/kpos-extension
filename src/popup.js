@@ -1,9 +1,11 @@
 const els = {
   modeText: document.querySelector("#modeText"),
   statusBadge: document.querySelector("#statusBadge"),
+  nameValue: document.querySelector("#nameValue"),
   pathValue: document.querySelector("#pathValue"),
   snValue: document.querySelector("#snValue"),
   typeValue: document.querySelector("#typeValue"),
+  areaValue: document.querySelector("#areaValue"),
   messageText: document.querySelector("#messageText"),
   optionsButton: document.querySelector("#optionsButton"),
   unbindButton: document.querySelector("#unbindButton")
@@ -36,9 +38,11 @@ async function init() {
 function renderStatus(status) {
   const modeLabel = status.mode === "operation" ? "运维模式" : "客户端模式";
   els.modeText.textContent = modeLabel;
+  els.nameValue.textContent = status.clientName || "-";
   els.pathValue.textContent = status.path || "-";
-  els.snValue.textContent = status.active ? status.sn : "-";
-  els.typeValue.textContent = status.active ? status.type : "-";
+  els.snValue.textContent = status.sn || "-";
+  els.typeValue.textContent = status.type || "-";
+  els.areaValue.textContent = status.areaName || "-";
   els.unbindButton.hidden = !status.active;
 
   if (status.active) {
