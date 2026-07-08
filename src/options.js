@@ -2,10 +2,9 @@ const els = {
   saveButton: document.querySelector("#saveButton"),
   resetButton: document.querySelector("#resetButton"),
   addPathButton: document.querySelector("#addPathButton"),
+  operationSnField: document.querySelector("#operationSnField"),
   operationSnInput: document.querySelector("#operationSnInput"),
   defaultClientNameInput: document.querySelector("#defaultClientNameInput"),
-  deviceIdInput: document.querySelector("#deviceIdInput"),
-  browserTypeInput: document.querySelector("#browserTypeInput"),
   generatedSnInput: document.querySelector("#generatedSnInput"),
   pathsBody: document.querySelector("#pathsBody"),
   feedback: document.querySelector("#feedback")
@@ -17,6 +16,9 @@ document.addEventListener("DOMContentLoaded", init);
 els.saveButton.addEventListener("click", save);
 els.resetButton.addEventListener("click", reset);
 els.addPathButton.addEventListener("click", addPath);
+document.querySelectorAll("input[name='mode']").forEach((input) => {
+  input.addEventListener("change", updateOperationSnVisibility);
+});
 
 async function init() {
   const response = await sendMessage({ type: "getSettings" });
@@ -35,10 +37,14 @@ function render() {
   });
   els.operationSnInput.value = settings.operationSn || "";
   els.defaultClientNameInput.value = settings.defaultClientName || "";
-  els.deviceIdInput.value = settings.deviceId || "";
-  els.browserTypeInput.value = settings.browserType || "";
   els.generatedSnInput.value = settings.generatedSn || "";
+  updateOperationSnVisibility();
   renderPaths();
+}
+
+function updateOperationSnVisibility() {
+  const mode = document.querySelector("input[name='mode']:checked")?.value || "client";
+  els.operationSnField.hidden = mode !== "operation";
 }
 
 function renderPaths() {
@@ -49,7 +55,6 @@ function renderPaths() {
     row.dataset.id = entry.id;
     row.innerHTML = `
       <td><input class="path-input" type="text" value="${escapeAttr(entry.path)}" aria-label="Path"></td>
-      <td><input class="sn-input" type="text" value="${escapeAttr(entry.sn)}" aria-label="SN"></td>
       <td><input class="type-input" type="number" min="0" step="1" value="${escapeAttr(entry.type)}" aria-label="Type"></td>
       <td><button class="icon-button remove-button" type="button" title="删除">删除</button></td>
     `;
@@ -67,7 +72,6 @@ function collectDraft() {
     paths: [...els.pathsBody.querySelectorAll("tr")].map((row) => ({
       id: row.dataset.id,
       path: row.querySelector(".path-input").value.trim(),
-      sn: row.querySelector(".sn-input").value.trim(),
       type: row.querySelector(".type-input").value.trim()
     }))
   };
@@ -91,7 +95,7 @@ async function save() {
 }
 
 async function reset() {
-  const confirmed = window.confirm("确定要恢复默认配置吗？当前 path、SN 和模式设置会被覆盖。");
+  const confirmed = window.confirm("确定要恢复默认配置吗？当前 path、默认 SN 和模式设置会被覆盖。");
   if (!confirmed) {
     return;
   }
@@ -111,7 +115,6 @@ function addPath() {
   settings.paths.push({
     id: `path-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     path: "",
-    sn: "",
     type: ""
   });
   renderPaths();

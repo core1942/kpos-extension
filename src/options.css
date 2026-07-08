@@ -9,6 +9,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: #f4f6fa;
@@ -168,7 +172,7 @@ input[readonly] {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 800px;
+  min-width: 620px;
 }
 
 th,
@@ -187,19 +191,15 @@ th {
 }
 
 td:nth-child(1) {
-  width: 32%;
+  width: 68%;
 }
 
 td:nth-child(2) {
-  width: 48%;
+  width: 20%;
 }
 
 td:nth-child(3) {
   width: 12%;
-}
-
-td:nth-child(4) {
-  width: 8%;
   text-align: right;
 }
 

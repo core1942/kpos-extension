@@ -15,14 +15,15 @@
 
 ## 功能
 
-- 首次安装生成稳定 `deviceId`，并拼接默认 SN：`BOWSER-${deviceId}-${browserType}`。
+- 首次安装生成稳定短 `deviceId`，并拼接默认 SN：`B-${deviceId}-${browserCode}`。
 - 仅在配置的 path 命中时激活插件。
-- 客户端模式下，进入目标页面前调用当前域名的 `/kpos/api/client/overview?sn=...&type=...`。
+- 客户端模式下，进入目标页面前使用当前 domain+path 记录的 SN 和命中 path 的 type 调用当前域名的 `/kpos/api/client/overview?sn=...&type=...`；没有记录时使用默认 SN。
 - 未绑定或接口异常时进入注册页，注册成功后回到原页面。
+- 注册页手动修改 SN 后可点击“连接”，连接成功后将该 SN 记录为当前 domain+path 的 SN。
 - 运维模式下，命中 path 后使用 `device001` 作为默认 SN，type 使用 path 配置值。
 - 使用 `declarativeNetRequest` 为当前标签页内 `/kpos/api` 开头的请求添加请求头；页面本身、iframe 和静态资源不添加请求头。
 - popup 展示当前页是否生效，以及生效时的 SN/type，并提供解绑按钮。
-- 完整配置页支持切换模式、新增/修改/删除 path、SN、type。
+- 完整配置页支持切换模式、查看只读默认 SN，并新增/修改/删除 path 与 type。
 - 监听 `401` 且响应体 `code=40103` 的 fetch/XHR 响应，重新进入注册流程；对 KPOS API 的 401 响应也有后台兜底处理。
 
 ## 安装调试
@@ -38,4 +39,4 @@
 
 ## 浏览器限制
 
-普通浏览器扩展无法读取 Windows 真实计算机名；注册页中的默认设备名称使用浏览器类型与生成的 `deviceId` 前缀组合。用户仍可在注册窗口中手动修改设备名称。
+普通浏览器扩展无法读取 Windows 真实计算机名；注册页中的默认设备名称使用 `${browserType}-${deviceId}`。用户仍可在注册窗口中手动修改设备名称。

@@ -7,6 +7,9 @@ const OVERVIEW_PATH = "/kpos/api/client/overview";
 const REGISTER_PATH = "/kpos/api/client/register";
 const UNBIND_PATH = "/kpos/api/client/unbind";
 const UNAUTHORIZED_CODE = 40103;
+const DEVICE_ID_LENGTH = 16;
+const DEVICE_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const SHORT_DEVICE_ID_PATTERN = /^[A-Za-z0-9]{16}$/;
 
 const RESOURCE_TYPES = [
   "main_frame",
@@ -130,6 +133,14 @@ async function handleMessage(message, sender) {
         tabId: sender.tab?.id
       });
 
+    case "connectRegistrationSn":
+      return connectRegistrationSn({
+        targetUrl: message.targetUrl,
+        entryId: message.entryId,
+        sn: message.sn,
+        tabId: sender.tab?.id
+      });
+
     case "resumeTarget":
       return resumeTarget(message.targetUrl, message.entryId, sender.tab?.id);
 
@@ -182,10 +193,10 @@ async function createInitialSettings(existingDevice) {
     browserType,
     generatedSn,
     defaultClientName: buildDefaultClientName(defaults.clientNamePrefix, browserType, deviceId),
+    domainPathSns: {},
     paths: defaults.paths.map((item, index) => ({
       id: createEntryId(item.path, index),
       path: normalizePath(item.path),
-      sn: item.sn || generatedSn,
       type: String(item.type ?? "")
     }))
   };
@@ -195,9 +206,10 @@ async function normalizeSettings(settings) {
   const defaults = await getDefaultConfig();
   const deviceId = settings.deviceId || createDeviceId();
   const browserType = settings.browserType || detectBrowserType();
-  const generatedSn = settings.generatedSn || buildGeneratedSn(deviceId, browserType);
+  const generatedSn = normalizeGeneratedSn(settings.generatedSn, deviceId, browserType);
   const paths = Array.isArray(settings.paths) ? settings.paths : [];
   const fallbackClientName = buildDefaultClientName(defaults.clientNamePrefix, browserType, deviceId);
+  const domainPathSns = normalizeDomainPathSns(settings.domainPathSns);
 
   return {
     version: 1,
@@ -210,10 +222,10 @@ async function normalizeSettings(settings) {
       settings.defaultClientName === undefined || settings.defaultClientName === null
         ? fallbackClientName
         : String(settings.defaultClientName).trim(),
+    domainPathSns,
     paths: paths.map((item, index) => ({
       id: item.id || createEntryId(item.path, index),
       path: normalizePath(item.path),
-      sn: String(item.sn ?? generatedSn).trim(),
       type: String(item.type ?? "").trim()
     }))
   };
@@ -244,6 +256,7 @@ async function saveSettings(draft) {
     deviceId: current.deviceId,
     browserType: current.browserType,
     generatedSn: current.generatedSn,
+    domainPathSns: current.domainPathSns,
     defaultClientName: draft?.defaultClientName ?? current.defaultClientName
   });
   const errors = validateSettings(next);
@@ -261,9 +274,8 @@ async function saveSettings(draft) {
 
 async function resetSettings() {
   const current = await getSettings();
-  const next = await createInitialSettings({
-    deviceId: current.deviceId
-  });
+  const existingDevice = isShortDeviceId(current.deviceId) ? { deviceId: current.deviceId } : undefined;
+  const next = await createInitialSettings(existingDevice);
 
   settingsPromise = Promise.resolve(next);
   await storageSet({ [STORAGE_KEY]: next });
@@ -280,12 +292,22 @@ function validateSettings(settings) {
     errors.push("模式必须是客户端模式或运维模式。");
   }
 
-  if (!settings.operationSn.trim()) {
+  if (settings.mode === "operation" && !settings.operationSn.trim()) {
     errors.push("运维模式 SN 不能为空。");
+  }
+  if (settings.mode === "operation" && settings.operationSn.includes("_")) {
+    errors.push("运维模式 SN 不能包含下划线。");
   }
 
   if (!settings.defaultClientName.trim()) {
     errors.push("默认设备名称不能为空。");
+  }
+
+  if (!settings.generatedSn.trim()) {
+    errors.push("默认 SN 不能为空。");
+  }
+  if (settings.generatedSn.includes("_")) {
+    errors.push("默认 SN 不能包含下划线。");
   }
 
   if (!settings.paths.length) {
@@ -301,9 +323,6 @@ function validateSettings(settings) {
       errors.push(`${row} path 与其他配置重复。`);
     }
     seenPaths.add(entry.path);
-    if (!entry.sn.trim()) {
-      errors.push(`${row} SN 不能为空。`);
-    }
     if (!/^\d+$/.test(entry.type)) {
       errors.push(`${row} type 必须是数字。`);
     }
@@ -336,13 +355,14 @@ async function scheduleNavigationCheck(tabId, url) {
 async function handleNavigation(tabId, url) {
   const settings = await getSettings();
   const entry = findPathEntry(url, settings);
+  const parsedUrl = tryParseUrl(url);
 
-  if (!entry) {
+  if (!entry || !parsedUrl) {
     await deactivateTab(tabId);
     return;
   }
 
-  const headerConfig = getHeaderConfig(settings, entry);
+  const headerConfig = getHeaderConfig(settings, entry, parsedUrl);
   if (!headerConfig.type || !headerConfig.sn) {
     await deactivateTab(tabId);
     return;
@@ -353,8 +373,9 @@ async function handleNavigation(tabId, url) {
     return;
   }
 
-  const overview = await fetchOverview(new URL(url).origin, entry);
+  const overview = await fetchOverview(parsedUrl.origin, headerConfig);
   if (overview.bound) {
+    await updateDomainPathSn(settings, parsedUrl, entry, headerConfig.sn);
     await activateTab(tabId, url, entry, headerConfig, settings.mode, overview.client);
     return;
   }
@@ -363,10 +384,10 @@ async function handleNavigation(tabId, url) {
   await openRegistrationGate(tabId, url, entry.id, overview.message || "设备未注册或授权检测失败。");
 }
 
-async function fetchOverview(origin, entry) {
+async function fetchOverview(origin, headerConfig) {
   const url = new URL(OVERVIEW_PATH, origin);
-  url.searchParams.set("sn", entry.sn);
-  url.searchParams.set("type", entry.type);
+  url.searchParams.set("sn", headerConfig.sn);
+  url.searchParams.set("type", headerConfig.type);
 
   try {
     const response = await fetch(url.href, {
@@ -448,13 +469,17 @@ async function prepareRegistration(targetUrl, entryId, reason) {
     return { ok: false, error: "注册上下文无效，请从目标页面重新进入。" };
   }
 
-  const overview = await fetchOverview(parsedUrl.origin, entry);
+  const headerConfig = getHeaderConfig(settings, entry, parsedUrl);
+  const overview = await fetchOverview(parsedUrl.origin, headerConfig);
+  if (overview.bound) {
+    await updateDomainPathSn(settings, parsedUrl, entry, headerConfig.sn);
+  }
   return {
     ok: true,
     targetUrl: parsedUrl.href,
     entryId: entry.id,
     path: entry.path,
-    sn: settings.generatedSn,
+    sn: headerConfig.sn,
     type: entry.type,
     defaultClientName: settings.defaultClientName,
     areas: overview.areas,
@@ -486,6 +511,10 @@ async function registerClient({ targetUrl, entryId, clientName, sn, areaId, tabI
     return { ok: false, error: "设备序列号不能为空。" };
   }
 
+  if (normalizedSn.includes("_")) {
+    return { ok: false, error: "设备序列号不能包含下划线。" };
+  }
+
   const payload = {
     sn: normalizedSn,
     clientName: normalizedClientName,
@@ -501,15 +530,75 @@ async function registerClient({ targetUrl, entryId, clientName, sn, areaId, tabI
     return { ok: false, error: result.message };
   }
 
-  const next = await updateEntrySn(entry.id, normalizedSn);
-  const updatedEntry = getEntryById(next, entry.id);
+  const registeredSn = String(result.body?.data?.sn || normalizedSn).trim();
+  const next = await updateDomainPathSn(settings, parsedUrl, entry, registeredSn);
+  const updatedEntry = getEntryById(next, entry.id) || entry;
   await clearPathHeaderRules();
-  await activateTab(tabId, parsedUrl.href, updatedEntry, getHeaderConfig(next, updatedEntry), next.mode);
+  await activateTab(
+    tabId,
+    parsedUrl.href,
+    updatedEntry,
+    getHeaderConfig(next, updatedEntry, parsedUrl),
+    next.mode,
+    result.body?.data || null
+  );
 
   return {
     ok: true,
     targetUrl: parsedUrl.href,
     client: result.body?.data || null
+  };
+}
+
+async function connectRegistrationSn({ targetUrl, entryId, sn, tabId }) {
+  const parsedUrl = tryParseUrl(targetUrl);
+  if (!parsedUrl || !tabId) {
+    return { ok: false, error: "连接上下文无效。" };
+  }
+
+  const settings = await getSettings();
+  const entry = getEntryById(settings, entryId);
+  if (!entry) {
+    return { ok: false, error: "未找到当前 path 配置。" };
+  }
+
+  const normalizedSn = String(sn || "").trim();
+  if (!normalizedSn) {
+    return { ok: false, error: "设备序列号不能为空。" };
+  }
+  if (normalizedSn.includes("_")) {
+    return { ok: false, error: "设备序列号不能包含下划线。" };
+  }
+
+  const overview = await fetchOverview(parsedUrl.origin, {
+    sn: normalizedSn,
+    type: String(entry.type ?? "").trim()
+  });
+
+  if (!overview.ok) {
+    return { ok: false, error: overview.message || "连接失败，请检查 SN 后重试。" };
+  }
+  if (!overview.bound) {
+    return { ok: false, error: "当前 SN 未绑定该类型，无法连接。" };
+  }
+
+  const connectedSn = String(overview.client?.sn || normalizedSn).trim();
+  const next = await updateDomainPathSn(settings, parsedUrl, entry, connectedSn);
+  const updatedEntry = getEntryById(next, entry.id) || entry;
+  await clearPathHeaderRules();
+  await activateTab(
+    tabId,
+    parsedUrl.href,
+    updatedEntry,
+    getHeaderConfig(next, updatedEntry, parsedUrl),
+    next.mode,
+    overview.client
+  );
+
+  return {
+    ok: true,
+    targetUrl: parsedUrl.href,
+    client: overview.client
   };
 }
 
@@ -525,7 +614,7 @@ async function resumeTarget(targetUrl, entryId, tabId) {
     return { ok: false, error: "未找到当前 path 配置。" };
   }
 
-  await activateTab(tabId, parsedUrl.href, entry, getHeaderConfig(settings, entry), settings.mode);
+  await activateTab(tabId, parsedUrl.href, entry, getHeaderConfig(settings, entry, parsedUrl), settings.mode);
   return { ok: true, targetUrl: parsedUrl.href };
 }
 
@@ -602,10 +691,9 @@ async function getPopupStatus(tabId) {
   const tab = await tabsGet(tabId);
   const entry = tab?.url ? findPathEntry(tab.url, settings) : null;
   const active = activeTabs.get(tabId);
-  const headerConfig = entry ? getHeaderConfig(settings, entry) : null;
+  const headerConfig = entry ? getHeaderConfig(settings, entry, tab.url) : null;
   const isActive = Boolean(entry && active && active.entryId === entry.id);
   const client = isActive ? active.client : null;
-  const operationFallback = settings.mode === "operation" && isActive;
 
   return {
     ok: true,
@@ -614,22 +702,11 @@ async function getPopupStatus(tabId) {
     active: isActive,
     path: entry?.path || "",
     clientName: client?.clientName || "",
-    sn: client?.sn || (operationFallback ? active.sn || headerConfig?.sn || "" : ""),
-    type: client?.typeName || (operationFallback ? active.type || headerConfig?.type || "" : ""),
+    sn: isActive ? active.sn || headerConfig?.sn || "" : "",
+    type: isActive ? active.type || headerConfig?.type || "" : "",
     areaName: client?.areaName || "",
     targetUrl: tab?.url || ""
   };
-}
-
-async function updateEntrySn(entryId, sn) {
-  const settings = await getSettings();
-  const next = {
-    ...settings,
-    paths: settings.paths.map((entry) => (entry.id === entryId ? { ...entry, sn } : entry))
-  };
-  settingsPromise = Promise.resolve(next);
-  await storageSet({ [STORAGE_KEY]: next });
-  return next;
 }
 
 async function refreshOpenTabs(settings) {
@@ -645,12 +722,12 @@ async function refreshOpenTabs(settings) {
         return;
       }
       if (settings.mode === "operation") {
-        await activateTab(tab.id, tab.url, entry, getHeaderConfig(settings, entry), settings.mode);
+        await activateTab(tab.id, tab.url, entry, getHeaderConfig(settings, entry, tab.url), settings.mode);
         return;
       }
       if (activeTabs.has(tab.id)) {
         const active = activeTabs.get(tab.id);
-        const headerConfig = getHeaderConfig(settings, entry);
+        const headerConfig = getHeaderConfig(settings, entry, tab.url);
         const client = active.sn === headerConfig.sn && active.type === headerConfig.type ? active.client : null;
         await activateTab(tab.id, tab.url, entry, headerConfig, settings.mode, client);
       }
@@ -741,11 +818,46 @@ function buildHeaderMutations(sn, type) {
   ];
 }
 
-function getHeaderConfig(settings, entry) {
+function getHeaderConfig(settings, entry, url) {
+  const parsedUrl = typeof url === "string" ? tryParseUrl(url) : url;
   return {
-    sn: settings.mode === "operation" ? settings.operationSn || "device001" : entry.sn,
+    sn: settings.mode === "operation" ? settings.operationSn || "device001" : getDomainPathSn(settings, parsedUrl, entry),
     type: String(entry.type ?? "").trim()
   };
+}
+
+function getDomainPathSn(settings, parsedUrl, entry) {
+  const key = getDomainPathKey(parsedUrl, entry);
+  const rememberedSn = key ? settings.domainPathSns?.[key] : "";
+  return String(rememberedSn || settings.generatedSn || "").trim();
+}
+
+function getDomainPathKey(parsedUrl, entry) {
+  const host = String(parsedUrl?.host || "").toLowerCase();
+  const path = normalizePath(entry?.path);
+  return host && path ? `${host}${path}` : "";
+}
+
+async function updateDomainPathSn(settings, parsedUrl, entry, sn) {
+  const key = getDomainPathKey(parsedUrl, entry);
+  const normalizedSn = String(sn || "").trim();
+  if (!key || !normalizedSn || settings.mode !== "client") {
+    return settings;
+  }
+  if (settings.domainPathSns?.[key] === normalizedSn) {
+    return settings;
+  }
+
+  const next = {
+    ...settings,
+    domainPathSns: {
+      ...(settings.domainPathSns || {}),
+      [key]: normalizedSn
+    }
+  };
+  settingsPromise = Promise.resolve(next);
+  await storageSet({ [STORAGE_KEY]: next });
+  return next;
 }
 
 function normalizeOverviewClient(client) {
@@ -796,6 +908,18 @@ function normalizePath(path) {
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }
 
+function normalizeDomainPathSns(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, sn]) => [String(key || "").trim(), String(sn || "").trim()])
+      .filter(([key, sn]) => key && sn)
+  );
+}
+
 function getEntryById(settings, entryId) {
   return settings.paths.find((entry) => entry.id === entryId) || null;
 }
@@ -806,10 +930,35 @@ function createEntryId(path, index) {
 }
 
 function createDeviceId() {
-  if (crypto.randomUUID) {
-    return crypto.randomUUID();
+  if (crypto.getRandomValues) {
+    return createRandomDeviceId();
   }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+    .replace(/[^A-Za-z0-9]/g, "")
+    .padEnd(DEVICE_ID_LENGTH, "0")
+    .slice(0, DEVICE_ID_LENGTH);
+}
+
+function createRandomDeviceId() {
+  const chars = [];
+  const maxByte = Math.floor(256 / DEVICE_ID_ALPHABET.length) * DEVICE_ID_ALPHABET.length;
+
+  while (chars.length < DEVICE_ID_LENGTH) {
+    const bytes = new Uint8Array(DEVICE_ID_LENGTH - chars.length);
+    crypto.getRandomValues(bytes);
+
+    bytes.forEach((byte) => {
+      if (byte < maxByte && chars.length < DEVICE_ID_LENGTH) {
+        chars.push(DEVICE_ID_ALPHABET[byte % DEVICE_ID_ALPHABET.length]);
+      }
+    });
+  }
+
+  return chars.join("");
+}
+
+function isShortDeviceId(deviceId) {
+  return SHORT_DEVICE_ID_PATTERN.test(String(deviceId || ""));
 }
 
 function detectBrowserType() {
@@ -824,11 +973,36 @@ function detectBrowserType() {
 }
 
 function buildGeneratedSn(deviceId, browserType) {
-  return `BOWSER-${deviceId}-${browserType}`;
+  return `B-${deviceId}-${browserCode(browserType)}`;
+}
+
+function normalizeGeneratedSn(value, deviceId, browserType) {
+  const generated = buildGeneratedSn(deviceId, browserType);
+  if (value === undefined || value === null) {
+    return generated;
+  }
+
+  const normalized = String(value).trim();
+  return normalized === buildLegacyGeneratedSn(deviceId, browserType) ? generated : normalized;
+}
+
+function buildLegacyGeneratedSn(deviceId, browserType) {
+  return `B-${deviceId}-${browserType}`;
+}
+
+function browserCode(browserType) {
+  switch (browserType) {
+    case "edge":
+      return "e";
+    case "chrome":
+      return "c";
+    default:
+      return "b";
+  }
 }
 
 function buildDefaultClientName(prefix, browserType, deviceId) {
-  return `${prefix || "POS License Client"} ${browserType}-${deviceId.slice(0, 8)}`;
+  return `${browserType}-${deviceId}`;
 }
 
 function simpleHash(source) {

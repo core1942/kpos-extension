@@ -9,6 +9,7 @@ const els = {
   registerForm: document.querySelector("#registerForm"),
   clientNameInput: document.querySelector("#clientNameInput"),
   snInput: document.querySelector("#snInput"),
+  connectSnButton: document.querySelector("#connectSnButton"),
   areaSelect: document.querySelector("#areaSelect"),
   targetText: document.querySelector("#targetText"),
   feedback: document.querySelector("#feedback"),
@@ -17,10 +18,13 @@ const els = {
 };
 
 let prepared = null;
+let initialSn = "";
 
 document.addEventListener("DOMContentLoaded", init);
 els.registerForm.addEventListener("submit", submitRegistration);
 els.optionsButton.addEventListener("click", () => chrome.runtime.openOptionsPage());
+els.snInput.addEventListener("input", updateConnectSnButton);
+els.connectSnButton.addEventListener("click", connectCurrentSn);
 
 async function init() {
   if (!targetUrl || !entryId) {
@@ -44,6 +48,8 @@ async function init() {
   els.typeBadge.textContent = `Type ${prepared.type}`;
   els.clientNameInput.value = prepared.defaultClientName || "";
   els.snInput.value = prepared.sn || "";
+  initialSn = els.snInput.value.trim();
+  updateConnectSnButton();
   els.targetText.textContent = prepared.targetUrl;
   renderAreas(prepared.areas || []);
 
@@ -65,6 +71,11 @@ async function init() {
   els.reasonText.textContent = prepared.reason || "当前设备未绑定，请完成注册后进入页面。";
   els.registerForm.hidden = false;
   els.clientNameInput.focus();
+}
+
+function updateConnectSnButton() {
+  const currentSn = els.snInput.value.trim();
+  els.connectSnButton.hidden = !prepared || !currentSn || currentSn === initialSn;
 }
 
 function renderAreas(areas) {
@@ -108,6 +119,42 @@ async function submitRegistration(event) {
   }
 
   showFeedback("注册成功，正在进入目标页面...", "success");
+  window.location.replace(result.targetUrl);
+}
+
+async function connectCurrentSn() {
+  if (!prepared) {
+    return;
+  }
+
+  const sn = els.snInput.value.trim();
+  if (!sn) {
+    showFeedback("设备序列号不能为空。", "error");
+    return;
+  }
+
+  els.connectSnButton.disabled = true;
+  els.submitButton.disabled = true;
+  showFeedback("正在连接当前 SN...", "muted");
+
+  const result = await sendMessage({
+    type: "connectRegistrationSn",
+    targetUrl: prepared.targetUrl,
+    entryId: prepared.entryId,
+    sn
+  });
+
+  els.connectSnButton.disabled = false;
+  els.submitButton.disabled = false;
+
+  if (!result.ok) {
+    showFeedback(result.error || "连接失败，请检查 SN 后重试。", "error");
+    return;
+  }
+
+  initialSn = sn;
+  updateConnectSnButton();
+  showFeedback("连接成功，正在进入目标页面...", "success");
   window.location.replace(result.targetUrl);
 }
 
